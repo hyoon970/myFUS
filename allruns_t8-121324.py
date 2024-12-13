@@ -3,6 +3,7 @@ import numpy as np
 import cv2.aruco as aruco
 from sklearn.cluster import KMeans
 from collections import Counter
+import time
 
 # Initialize the ArUco dictionary and parameters
 aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
@@ -37,7 +38,7 @@ def get_dominant_color_hsv(cap, k=2):
     return lower_skin, upper_skin
 
 
-def convert_grayscale_to_rgb_mask2(grayscale_mask):
+def convert_grayscale_to_rgb_mask2(grayscale_mask): # make a green mask
     # Create an RGB image by stacking the grayscale mask 3 times (initially, R=G=B)
     rgb_mask = cv2.cvtColor(grayscale_mask, cv2.COLOR_GRAY2BGR)
 
@@ -49,7 +50,7 @@ def convert_grayscale_to_rgb_mask2(grayscale_mask):
 
     return rgb_mask
 
-def convert_grayscale_to_rgb_mask(grayscale_mask):
+def convert_grayscale_to_rgb_mask(grayscale_mask): # make a red mask
     # Create an RGB image by stacking the grayscale mask 3 times (initially, R=G=B)
     rgb_mask = cv2.cvtColor(grayscale_mask, cv2.COLOR_GRAY2BGR)
 
@@ -74,23 +75,7 @@ def highlight_navy_blue(cap, lower_skin, upper_skin):
     # lower_navy_blue = np.array([100, 50, 50])   # Adjust the lower bound based on your needs
     # upper_navy_blue = np.array([130, 255, 150])  # Adjust the upper bound based on your needs
 
-    # lower_navy_blue = np.array([30, 80, 70])   # Actually for yellow, adjust the lower bound based on your needs
-    # upper_navy_blue = np.array([60, 150, 170])  # Actually for yellow, adjust the upper bound based on your needs
-
-    # lower_navy_blue = np.array([121, 75, 85])   # Actually for bluegreen, adjust the lower bound based on your needs
-    # upper_navy_blue = np.array([167, 245, 250])  # Actually for bluegreen, adjust the upper bound based on your needs
-
-    # lower_navy_blue = np.array([121, 75, 85])   # Actually for bluegreen, adjust the lower bound based on your needs
-    # upper_navy_blue = np.array([167, 245, 250])  # Actually for bluegreen, adjust the upper bound based on your needs
-
-    # lower_navy_blue = np.array([150, 80, 40])   # Actually for red, adjust the lower bound based on your needs
-    # upper_navy_blue = np.array([255, 245, 255])  # Actually for red, adjust the upper bound based on your needs
-
-    # lower_navy_blue = np.array([0, 63, 141])  # Actually for breastphantom on AS's desk, adjust the lower bound based on your needs
-    # upper_navy_blue = np.array([255, 255, 255])  # Actually for breastphantom on AS's desk, adjust the upper bound based on your needs
-
     # Create a mask for navy-blue pixels
-    # mask1 = cv2.inRange(hsv, lower_navy_blue, upper_navy_blue)
     mask1 = cv2.inRange(hsv, lower_skin, upper_skin)
 
     # Create a new frame where navy-blue pixels will be highlighted in red
@@ -105,7 +90,6 @@ def highlight_navy_blue(cap, lower_skin, upper_skin):
 
 # Function 2: Detect relative positions
 def detect_base_position(cap, base_flag, base_corners, base_width):
-
     while True:
         ret, frame = cap.read()
         frame = cv2.flip(frame, 1)
@@ -164,7 +148,7 @@ def compare_base_position(cap, base_corners, base_width):
         roi[np.where(rgb_mask)] = 0
         roi += rgb_mask.astype(np.uint8)
 
-        #draw original base square
+        # draw original base square
         # base_points = np.array(base_corners[0][0], np.int32)
         print(f"base corners are {base_corners}")
         base_points = base_corners[0][0]
@@ -209,6 +193,274 @@ def compare_base_position(cap, base_corners, base_width):
 
     print(f'All saved corners {relative_corners}')
 
+################################
+def calculate_overlap_percentage(img1,img2):
+    # Ensure the two images have the same dimensions
+    assert img1.shape == img2.shape, "Images must have the same dimensions"
+
+    # Calculate the intersection (logical AND)
+    intersection = np.logical_and(img1, img2).astype(np.int8)
+
+    # Calculate the union (logical OR)
+    union = np.logical_or(img1, img2).astype(np.uint8)
+
+    #Count the non-zero pixels in intersection and union
+    intersection_count = np.count_nonzero(intersection)
+    union_count = np.count_nonzero(union)
+
+    if union_count == 0:
+        print("Reference mask was not detected, please start it again")
+        return 0
+
+    # Calculate the overlap percentage
+    overlap_percentage = (intersection_count / union_count) * 100
+    overlap_percentage = round(overlap_percentage, 2)
+
+    return overlap_percentage
+
+
+def calculate_mask_overlap(cap, mask, lower_skin, upper_skin):  # 'mask' should be rgb mask
+    positions_collected = 0
+    count = 0
+
+
+    while True:
+
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = cv2.flip(frame, 1)  ## This is the frame we see
+        # Detect the ArUco marker
+        #corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+        ###
+
+        #cap_trans = cv2.VideoCapture(0)
+
+        ret_trans, frame1_trans = cap.read()
+
+        frame1_trans = cv2.flip(frame1_trans, 1)
+
+        ## mask with background subtraction
+        # Convert the frame into grayscale
+        gray = cv2.cvtColor(frame1_trans, cv2.COLOR_BGR2GRAY)
+        # Create a backgroundsubtractor
+        back_sub = cv2.createBackgroundSubtractorMOG2()
+        # Apply backgroundsubtractor
+        fg_mask = back_sub.apply(gray)
+        # Threshold to get binary mask
+        _, binary_mask = cv2.threshold(fg_mask, 250, 255, cv2.THRESH_BINARY)
+        # Find contours
+        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(frame1_trans, contours, -1, (0, 255, 0), 2)
+
+        if count == 1:
+            cv2.imwrite('contour_mask.png', fg_mask)
+
+
+        # Convert the frame to HSV color space
+        hsv_trans = cv2.cvtColor(frame1_trans, cv2.COLOR_BGR2HSV)
+
+        # Define the lower and upper range for navy-blue color in HSV
+        # lower_navy_blue = np.array([100, 50, 50])   # Adjust the lower bound based on your needs
+        # upper_navy_blue = np.array([130, 255, 150])  # Adjust the upper bound based on your needs
+
+        # Create a mask for navy-blue pixels
+        mask1_trans = cv2.inRange(hsv_trans, lower_skin, upper_skin)
+
+        # This is for saving the mask_trans for checking if it is working properly
+        # cv2.imwrite(f'mask_{count}.png', mask1_trans)
+
+        hsv_from_ref = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2HSV)
+
+        # Define the lower and upper range for navy-blue color in HSV
+        # lower_navy_blue = np.array([100, 50, 50])   # Adjust the lower bound based on your needs
+        # upper_navy_blue = np.array([130, 255, 150])  # Adjust the upper bound based on your needs
+
+        # Create a mask for navy-blue pixels
+        mask_ref = cv2.inRange(hsv_from_ref, lower_skin, upper_skin) ## This is a binary image
+
+        roi = frame[:, :]
+
+        # Set an index of where the mask is
+        roi[np.where(rgb_mask)] = 0  # 'mask' should be rgb mask
+        roi += rgb_mask.astype(np.uint8)
+
+
+        if count == 0:
+            print(mask1_trans.shape)
+            print('\n')
+            print(mask_ref.shape)
+
+
+
+        # Save roi as an image
+        #cv2.imwrite(f'roi_{count}.png', roi)
+        count += 1
+
+        print(count)
+
+        overlap_percent = calculate_overlap_percentage(mask_ref,mask1_trans)
+        print('overlap_percentage: ' + str(overlap_percent) + '%')
+
+        if count == 1:
+            cv2.imwrite('mask_ref.png', mask_ref)
+            cv2.imwrite('mask1_trans.png', mask1_trans)
+
+
+        # Define the text to display
+        text = 'overlap_percentage: ' + str(overlap_percent) + '%'
+
+        # Define the font, position, font size, color, and thickness
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        position = (20,20)
+        font_scale = 0.5
+        color = (255,0,0)
+        thickness = 2
+
+        # Add the text to the image
+        #cv2.putText(frame, text, position, font, font_scale, color, thickness)
+        cv2.putText(frame1_trans, text, position, font, font_scale, color, thickness)
+
+        #cv2.imshow('Mask', frame)
+        cv2.imshow('Mask', frame1_trans)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+
+def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
+    count = 0
+
+    while True:
+
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = cv2.flip(frame, 1)  ## This is the frame we see
+
+        ret_trans, frame1_trans = cap.read()
+
+        frame1_trans = cv2.flip(frame1_trans, 1)
+
+        ## mask with background subtraction (background should be white)
+        # Convert the frame into grayscale
+        gray = cv2.cvtColor(frame1_trans, cv2.COLOR_BGR2GRAY)
+        # Threshold to get binary mask
+        _, binary_mask_trans = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY) # should adjust the range according to the background
+        # Find contours
+        contours, _ = cv2.findContours(binary_mask_trans, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(frame1_trans, contours, -1, (0, 255, 0), 2)
+
+        if count == 1:
+            cv2.imwrite('contour_mask.png', mask)
+
+
+        ### Change binary mask into rgb mask
+        # Create an empty HSV image
+        hsv_image_contour = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+        # Define HSV values for white and black pixels
+        # Hue: 0-179, Saturation: 0-255, Value: 0-255
+        hsv_foreground_contour = (60, 255, 255)  # Example: green
+        hsv_background_contour = (0, 0, 0)  # Black
+        # Apply the HSV values based on the binary image
+        hsv_image_contour[mask == 255] = hsv_foreground_contour
+        hsv_image_contour[mask == 0] = hsv_background_contour
+        # Convert HSV to BGR for visualization or saving
+        bgr_mask_contour = cv2.cvtColor(hsv_image_contour, cv2.COLOR_HSV2BGR)
+
+
+        ### Attach the mask on the frame
+        roi = frame1_trans[:, :]
+        # Set an index of where the mask is
+        roi[np.where(bgr_mask_contour)] = 0  # 'mask' should be rgb mask
+        roi += bgr_mask_contour.astype(np.uint8)
+
+        if count == 0:
+            print(binary_mask_trans.shape)
+            print('\n')
+            print(mask.shape)
+
+
+        # Save roi as an image
+        #cv2.imwrite(f'roi_{count}.png', roi)
+        count += 1
+
+        print(count)
+
+        overlap_percent = calculate_overlap_percentage(binary_mask_trans,mask)
+        print('overlap_percentage: ' + str(overlap_percent) + '%')
+
+        if count == 1:
+            cv2.imwrite('mask_ref.png', binary_mask_trans)
+            cv2.imwrite('mask1_trans.png', mask)
+
+
+        # Define the text to display
+        text = 'overlap_percentage: ' + str(overlap_percent) + '%'
+
+        # Define the font, position, font size, color, and thickness
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        position = (20,20)
+        font_scale = 0.5
+        color = (255,0,0) # Blue, (B, G, R)
+        thickness = 2
+
+        ### Indicating the direction we should move
+        # Calculate the total number of pixels
+        total_pixels_ref = mask.size
+        total_pixels_trans = binary_mask_trans.size
+        # Count the number of pixels with value 0
+        zero_pixels_ref = np.sum(mask == 0)
+        zero_pixels_trans = np.sum(binary_mask_trans == 0)
+        # Calculate the percentage of 0 pixels
+        percentage_of_zeros_ref = (zero_pixels_ref / total_pixels_ref) * 100
+        percentage_of_zeros_trans = (zero_pixels_trans / total_pixels_trans) * 100
+
+        percentage_threshold = 95
+        if overlap_percent >= percentage_threshold:
+            text0 = 'Aligned!'
+            # Define the font, position, font size, color, and thickness
+            font0 = cv2.FONT_HERSHEY_SIMPLEX
+            position0 = (20, 50)
+            font_scale0 = 0.5
+            color0 = (255, 0, 0)
+            thickness0 = 2
+            cv2.putText(frame1_trans, text0, position0, font0, font_scale0, color0, thickness0)
+        if (percentage_of_zeros_trans >= percentage_of_zeros_ref) and overlap_percent < percentage_threshold:
+            text1 = 'Please move backward'
+            # Define the font, position, font size, color, and thickness
+            font1 = cv2.FONT_HERSHEY_SIMPLEX
+            position1 = (20, 50)
+            font_scale1 = 0.5
+            color1 = (255, 0, 0)
+            thickness1 = 2
+            cv2.putText(frame1_trans, text1, position1, font1, font_scale1, color1, thickness1)
+        if (percentage_of_zeros_trans < percentage_of_zeros_ref) and overlap_percent < percentage_threshold:
+            text2 = 'Please move forward'
+            # Define the font, position, font size, color, and thickness
+            font2 = cv2.FONT_HERSHEY_SIMPLEX
+            position2 = (20, 50)
+            font_scale2 = 0.5
+            color2 = (255, 0, 0)
+            thickness2 = 2
+            cv2.putText(frame1_trans, text2, position2, font2, font_scale2, color2, thickness2)
+
+
+
+        # Add the text to the image
+        cv2.putText(frame1_trans, text, position, font, font_scale, color, thickness)
+
+        # Show the image on the screen
+        cv2.imshow('Mask', frame1_trans)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+################################################################
+################################################################
+
 
 # Function 2: Detect relative positions
 def detect_relative_positions(cap):
@@ -220,7 +472,7 @@ def detect_relative_positions(cap):
         if not ret:
             break
 
-        frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1) ## This is the frame we see
         # Detect the ArUco marker
         corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
 
@@ -283,7 +535,7 @@ def display_relative_positions(cap):
             break
 
 
-def compare_probe_overlap(cap):
+def compare_probe_overlap(cap): ## We need to modify this into mask overlap
 
     tolerance = 5
 
@@ -353,6 +605,16 @@ def main():
     lower_skin, upper_skin = get_dominant_color_hsv(cap, k=2)
     highlighted_frame, rgb_mask = highlight_navy_blue(cap, lower_skin, upper_skin)
 
+    ## mask with background subtraction (background should be white)
+    time.sleep(5) ## To avoid flash lighting at the first time
+    ret, frame = cap.read()
+    frame = cv2.flip(frame, 1)
+    # Convert the frame into grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Threshold to get binary mask
+    _, binary_mask = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)  # should adjust the range according to the background
+
+
     while True:
         ret, frame = cap.read()
         frame = cv2.flip(frame, 1)
@@ -389,6 +651,11 @@ def main():
             base_corners, base_width = detect_base_position(cap, base_flag, base_corners, base_width)
         if key == ord('l'): # l for line-up
             compare_base_position(cap, base_corners, base_width)
+
+        ## make another ord function
+        if key == ord('m'):
+            #calculate_mask_overlap(cap, rgb_mask, lower_skin, upper_skin)
+            calculate_mask_overlap_contour(cap, binary_mask)
         if key == ord('r'):
             detect_relative_positions(cap)
             for i in range(total_positions):
@@ -396,6 +663,8 @@ def main():
                 cv2.polylines(white_frame, np.int32(relative_corners[i]), True, (255, 0, 0), 2)
                 # Display the white frame
                 cv2.imshow("White Frame", white_frame)
+
+
         elif key == ord('d'):
             print(f'lenght of relative positions array is {len(relative_corners)}')
             if len(relative_corners) == total_positions:

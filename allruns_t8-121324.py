@@ -256,7 +256,7 @@ def calculate_mask_overlap(cap, mask, lower_skin, upper_skin):  # 'mask' should 
         cv2.drawContours(frame1_trans, contours, -1, (0, 255, 0), 2)
 
         if count == 1:
-            cv2.imwrite('contour_mask.png', fg_mask)
+            cv2.imwrite('test-mask/contour_mask.png', fg_mask)
 
 
         # Convert the frame to HSV color space
@@ -270,7 +270,7 @@ def calculate_mask_overlap(cap, mask, lower_skin, upper_skin):  # 'mask' should 
         mask1_trans = cv2.inRange(hsv_trans, lower_skin, upper_skin)
 
         # This is for saving the mask_trans for checking if it is working properly
-        # cv2.imwrite(f'mask_{count}.png', mask1_trans)
+        # cv2.imwrite(f'test-mask/mask_{count}.png', mask1_trans)
 
         hsv_from_ref = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2HSV)
 
@@ -293,10 +293,6 @@ def calculate_mask_overlap(cap, mask, lower_skin, upper_skin):  # 'mask' should 
             print('\n')
             print(mask_ref.shape)
 
-
-
-        # Save roi as an image
-        #cv2.imwrite(f'roi_{count}.png', roi)
         count += 1
 
         print(count)
@@ -305,8 +301,8 @@ def calculate_mask_overlap(cap, mask, lower_skin, upper_skin):  # 'mask' should 
         print('overlap_percentage: ' + str(overlap_percent) + '%')
 
         if count == 1:
-            cv2.imwrite('mask_ref.png', mask_ref)
-            cv2.imwrite('mask1_trans.png', mask1_trans)
+            cv2.imwrite('test_mask/mask_ref.png', mask_ref)
+            cv2.imwrite('test_mask/mask1_trans.png', mask1_trans)
 
 
         # Define the text to display
@@ -355,7 +351,7 @@ def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
         cv2.drawContours(frame1_trans, contours, -1, (0, 255, 0), 2)
 
         if count == 1:
-            cv2.imwrite('contour_mask.png', mask)
+            cv2.imwrite('test_mask/contour_mask.png', mask) ## To check if the mask is properly made
 
 
         ### Change binary mask into rgb mask
@@ -394,8 +390,8 @@ def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
         print('overlap_percentage: ' + str(overlap_percent) + '%')
 
         if count == 1:
-            cv2.imwrite('mask_ref.png', binary_mask_trans)
-            cv2.imwrite('mask1_trans.png', mask)
+            cv2.imwrite('test_mask/mask_ref.png', binary_mask_trans)
+            cv2.imwrite('test_mask/mask1_trans.png', mask)
 
 
         # Define the text to display

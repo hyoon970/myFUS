@@ -344,11 +344,29 @@ def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
         ## mask with background subtraction (background should be white)
         # Convert the frame into grayscale
         gray = cv2.cvtColor(frame1_trans, cv2.COLOR_BGR2GRAY)
+
+        ####### I changed the threshold from 200 to 190 #######
         # Threshold to get binary mask
-        _, binary_mask_trans = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY) # should adjust the range according to the background
+        _, binary_mask_trans = cv2.threshold(gray, 190, 255, cv2.THRESH_BINARY) # should adjust the range according to the background
+
+
+        ######################################
+        ####### what I added on 250121 #######
+        height, width = binary_mask_trans.shape[:2]
+        center_column_index = width // 2
+        ratio_to_keep_from_center = 0.5
+        binary_mask_trans[:, :round(center_column_index * (1 - ratio_to_keep_from_center))] = 0
+        binary_mask_trans[:, round(center_column_index * (1 + ratio_to_keep_from_center)):] = 0
+        ######################################
+        ######################################
+
         # Find contours
         contours, _ = cv2.findContours(binary_mask_trans, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        #print(type(contours))
+        #print(contours)
         cv2.drawContours(frame1_trans, contours, -1, (0, 255, 0), 2)
+
+
 
         if count == 1:
             cv2.imwrite('test_mask/contour_mask.png', mask) ## To check if the mask is properly made
@@ -367,6 +385,19 @@ def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
         # Convert HSV to BGR for visualization or saving
         bgr_mask_contour = cv2.cvtColor(hsv_image_contour, cv2.COLOR_HSV2BGR)
 
+        ######################################
+        ####### what I added on 250121 #######
+
+        height, width = bgr_mask_contour.shape[:2]
+        center_column_index = width // 2
+        ratio_to_keep_from_center = 0.5
+        bgr_mask_contour[:, :round(center_column_index*(1-ratio_to_keep_from_center))] = 0
+        bgr_mask_contour[:, round(center_column_index * (1+ratio_to_keep_from_center)):] = 0
+
+        mask[:, :round(center_column_index*(1-ratio_to_keep_from_center))] = 0
+        mask[:, round(center_column_index * (1+ratio_to_keep_from_center)):] = 0
+        ######################################
+        ######################################
 
         ### Attach the mask on the frame
         roi = frame1_trans[:, :]
@@ -387,6 +418,7 @@ def calculate_mask_overlap_contour(cap, mask):  # 'mask' should be rgb mask
         print(count)
 
         overlap_percent = calculate_overlap_percentage(binary_mask_trans,mask)
+        #overlap_percent = calculate_overlap_percentage(binary_mask_trans, mask)
         print('overlap_percentage: ' + str(overlap_percent) + '%')
 
         if count == 1:

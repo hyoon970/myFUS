@@ -179,61 +179,6 @@ def function2(frame):
     return modified_frame
 
 
-
-
-
-
-
-
-
-
-
-
-    # global rgb_mask
-    # frame = cv2.flip(frame, 1)
-    # modified_frame = frame.copy()
-
-    # # Identify mask areas
-    # mask_indices = np.where((rgb_mask[:, :, 0] != 0) | (rgb_mask[:, :, 1] != 0) | (rgb_mask[:, :, 2] != 0))
-
-    # # Apply a transparent black overlay
-    # alpha = 0.5  # Transparency level
-    # modified_frame[mask_indices] = (1 - alpha) * frame[mask_indices]
-
-    # # Create a binary mask for contours
-    # grayscale_mask = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2GRAY)
-    # contours, _ = cv2.findContours(grayscale_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # # Draw light pink outline
-    # for contour in contours:
-    #     cv2.polylines(modified_frame, [contour], isClosed=True, color=(255, 182, 193), thickness=2)  # Light pink (BGR)
-
-    # cv2.putText(modified_frame, text="The mask has been saved, proceed to 'Determine Imaging Windows'", 
-    #             org=(25, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(255, 255, 255), 
-    #             thickness=2)
-
-    # return modified_frame
-
-
-
-
-    # global rgb_mask
-    # frame = cv2.flip(frame, 1)
-    # # this is the section where we superimpose the initially captured mask
-    # roi = frame[:, :]
-    # # Set an index of where the mask is
-    # roi[np.where(rgb_mask)] = 0
-    # roi += rgb_mask.astype(np.uint8)
-    
-    # # Create a black background
-    # black_background = np.zeros_like(frame)
-    # # Copy the region of interest (person) to the black background
-    # black_background[np.where(rgb_mask)] = frame[np.where(rgb_mask)]
-    
-    # return black_background
-
-
-
 #Base position calibration
 def function3(frame):
     global rgb_mask, base_positions, base_width
@@ -354,14 +299,6 @@ def function6(frame):
     roi[np.where(rgb_mask)] = 0
     roi += rgb_mask.astype(np.uint8)
 
-    # # draw original base square
-    # base_points = np.array(base_positions[0][0], np.int32)
-    # # Reshape to match the (n, 1, 2) shape expected by cv2.polylines()
-    # base_points = base_points.reshape((-1, 1, 2))
-    # # print(f"base corners are {base_points}")
-    #
-    # cv2.polylines(frame, [base_points], True, (255, 0, 255), 2)
-
     if positions_collected > 0:
         for vertices_set in relative_positions.values():
             # Convert the set of vertices to a NumPy array of shape (n, 1, 2)
@@ -382,34 +319,50 @@ def function6(frame):
 
 #compare probe overlap
 def function7(frame):
-    global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
+    tolerance = 5
 
-    frame = cv2.flip(frame, 1)
+    while True:
+        frame = cv2.flip(frame, 1)
 
-    # detect aruco markers before adding mask
-    corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+        roi = frame[:, :]
 
-    roi = frame[:, :]
+        # Set an index of where the mask is
+        roi[np.where(rgb_mask)] = 0
+        roi += rgb_mask.astype(np.uint8)
 
-    # Set an index of where the mask is
-    roi[np.where(rgb_mask)] = 0
-    roi += rgb_mask.astype(np.uint8)
+        base_points = np.array(list(base_positions.values()), np.int32)
 
-    aruco.drawDetectedMarkers(frame, corners, ids)
+        # Reshape to match the (n, 1, 2) shape expected by cv2.polylines()
+        base_points = base_points.reshape((-1, 1, 2))
 
-    # check overlap
-    if ids is not None:
-        print(f'corners of marker are {corners}')
+        cv2.polylines(frame, [base_points], True, (0, 255, 0), 2)
+
         for i in range(total_positions):
-            pass
+            cv2.polylines(frame, np.int32(relative_positions[i]), True, (255, 0, 0), 2)
 
-    if positions_collected < total_positions:
-        current_function_index[0] = 5
-    print(f"positions_collected {positions_collected}")
-    cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(250, 200),
-                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+        corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+        aruco.drawDetectedMarkers(frame, corners, ids)
 
-    return frame
+        # check overlap
+        if ids is not None:
+            print(f'corners of marker are {corners}')
+            print(f'corners of saved position 1 are {relative_positions[0]}')
+            print(f'corners of saved position 2 are {relative_positions[1]}')
+            for i in range(total_positions):
+                diff = np.array(corners) - np.array(relative_positions[i])
+                print(f'difference array is {diff}')
+                if diff.all() <= 10:
+                    overlap_id = i
+                    break
+            # Draw the filled polygon
+            fill_color = (0, 255, 0)  # Fill color in BGR (Green in this case)
+            # cv2.fillPoly(frame, [np.array(relative_corners[overlap_id])], fill_color)
+            cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (0, 255, 0), 4)
+
+        cv2.imshow("Keep positioning it into the frame", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 
 # Main function

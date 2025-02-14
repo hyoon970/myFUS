@@ -79,7 +79,7 @@ def highlight_navy_blue(frame1, lower_skin, upper_skin):
 def function0(frame):
     """Applies a grayscale filter."""
     frame = cv2.flip(frame, 1)
-    cv2.putText(frame, text=f"Click 'Mask Capture' when you are ready {user_name}", org=(200, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+    cv2.putText(frame, text=f"Click 'Mask Capture' when you are ready {user_name}", org=(150, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.1, color=(0, 0, 0), thickness=2)
     return cv2.GaussianBlur(frame, (15, 15), 0)
 
     # return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -92,7 +92,7 @@ def function1(frame):
     lower_skin, upper_skin = get_dominant_color_hsv(frame, k=2)
     highlighted_frame, rgb_mask = highlight_navy_blue(frame, lower_skin, upper_skin)
     frame = cv2.flip(frame, 1)
-    cv2.putText(frame, text="Click 'Save Mask' if you are satisfied with the positioning", org=(200, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+    cv2.putText(frame, text="Click 'Save Mask' if you are satisfied with the positioning", org=(150, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
                 fontScale=1, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA)
     # this is the section where we superimpose the initially captured mask
     roi = frame[:, :]
@@ -105,7 +105,7 @@ def function1(frame):
 
 #display the saved mask
 def function2(frame):
-    global rgb_mask
+    global rgb_mask, total_saved, positions_collected, aruco_flag
     frame = cv2.flip(frame, 1)
     modified_frame = frame.copy()
 
@@ -149,22 +149,22 @@ def function2(frame):
 
     # Display "Mask" Information
     if total_saved > 0:  # Display only after a mask is saved
-        cv2.putText(modified_frame, "Mask", org=(120, 300), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1.5, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+        cv2.putText(modified_frame, "Mask", org=(80, 300), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+                    fontScale=1, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
 
         cv2.putText(modified_frame, f"Mask Collected: Yes",
-                    org=(120, 350), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
+                    org=(80, 350), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5,
                     color=(255, 255, 400), thickness=2, lineType=cv2.LINE_AA)
 
         cv2.putText(modified_frame, f"Mask Overlap: {match_percentage:.1f}%",
-                    org=(120, 385), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
+                    org=(80, 385), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5,
                     color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
 
         # Add instruction text in color if necessary
-        instruction_text = "Move forward" if match_percentage < 90 else "Good position"
-        text_color = (120, 100, 255)  # Light pink color
-        cv2.putText(modified_frame, instruction_text, org=(120, 420), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1, color=text_color, thickness=2, lineType=cv2.LINE_AA)
+        instruction_text = "Move into position" if match_percentage < 90 else "Good position"
+        text_color = (80, 100, 255)  # Light pink color
+        cv2.putText(modified_frame, instruction_text, org=(80, 420), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+                    fontScale=0.5, color=text_color, thickness=2, lineType=cv2.LINE_AA)
 
     # Display the match percentage on the frame
     # percentage_text = f"Match: {match_percentage:.2f}%"
@@ -172,75 +172,20 @@ def function2(frame):
     #             fontScale=1, color=(0, 255, 0), thickness=2)
 
     # Add instruction text
-    cv2.putText(modified_frame, text="The mask has been saved, proceed to 'Find Imaging Windows'",
-                org=(200, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0),
+    if aruco_flag != 1:
+        cv2.putText(modified_frame, text="The mask has been saved, proceed to 'Find Imaging Windows'",
+                org=(150, 50), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0),
                 thickness=2)
 
     return modified_frame
 
 # Detect aruco marker positions
-def function3(frame):
-    global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
+def function3(frame2):
+    global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index, total_saved, aruco_flag
 
+    aruco_flag = 1
     # saved mask needs to be displayed for all functions henceforth
-    frame = cv2.flip(frame, 1)
-    modified_frame = frame.copy()
-
-    # Dynamically calculate the transparent black overlay
-    lower_skin, upper_skin = get_dominant_color_hsv(frame, k=2)
-    dynamic_mask = cv2.inRange(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), lower_skin, upper_skin)
-
-    # Apply the transparent green overlay
-    alpha_green = 0.5  # Transparency level
-    dynamic_mask_indices = dynamic_mask != 0
-    modified_frame[dynamic_mask_indices] = (
-            (1 - alpha_green) * modified_frame[dynamic_mask_indices]
-            + alpha_green * np.array([0, 255, 0], dtype=np.uint8)
-    )
-
-    # Calculate overlap percentage between the current mask and saved mask
-    grayscale_saved_mask = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2GRAY)
-    saved_mask_indices = grayscale_saved_mask != 0
-
-    overlap = np.logical_and(dynamic_mask_indices, saved_mask_indices).sum()
-    total_saved = saved_mask_indices.sum()
-
-    match_percentage = (overlap / total_saved * 100) if total_saved > 0 else 0
-
-    # Create a transparent white overlay for the saved mask
-    overlay = modified_frame.copy()
-    contours, _ = cv2.findContours(grayscale_saved_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Draw the larger white outline on the overlay
-    for contour in contours:
-        cv2.polylines(overlay, [contour], isClosed=True, color=(255, 255, 255), thickness=10)  # White (BGR)
-
-    # Blend the white overlay with the frame
-    alpha_white = 0.7  # Transparency level for white outline
-    cv2.addWeighted(overlay, alpha_white, modified_frame, 1 - alpha_white, 0, modified_frame)
-
-    # Draw the smaller pink outline on top of everything
-    for contour in contours:
-        cv2.polylines(modified_frame, [contour], isClosed=True, color=(203, 192, 255), thickness=2)  # Pink (BGR)
-
-    # Display "Mask" Information
-    if total_saved > 0:  # Display only after a mask is saved
-        cv2.putText(modified_frame, "Mask", org=(120, 300), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1.5, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Collected: Yes",
-                    org=(120, 350), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 400), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Overlap: {match_percentage:.1f}%",
-                    org=(120, 385), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        # Add instruction text in color if necessary
-        instruction_text = "Move forward" if match_percentage < 90 else "Good position"
-        text_color = (150, 100, 255)  # Light pink color
-        cv2.putText(modified_frame, instruction_text, org=(120, 420), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1, color=text_color, thickness=2, lineType=cv2.LINE_AA)
+    frame = function2(frame2)
 
 
     # draw all saved  markers except the current one
@@ -255,96 +200,36 @@ def function3(frame):
 
     if positions_collected <= total_positions:
         string1 = f"Position {positions_collected} of {total_positions} has been collected"
-        cv2.putText(frame, text=string1, org=(200, 100),
+        cv2.putText(frame, text=string1, org=(100, 100),
                     fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
         # continously detect new markers
-        while True:
-            # detect aruco markers
-            corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-            # If marker detected, draw a bounding box around it
-            if ids is not None:
-                aruco.drawDetectedMarkers(frame, corners, ids)
-                relative_positions[positions_collected] = corners
-                print(f'All saved corners {relative_positions}')
-                cv2.putText(frame, text="Click 'Save Imaging Window' when you get a good ultrasound image",
-                            org=(200, 200),
-                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
-            else:
-                cv2.putText(frame, text="Please display the marker clearly", org=(200, 250),
-                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
-                print("please display the marker clearly")
+        # while True:
+        # detect aruco markers
+        corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+        # If marker detected, draw a bounding box around it
+        if ids is not None:
+            aruco.drawDetectedMarkers(frame, corners, ids)
+            relative_positions[positions_collected] = corners
+            print(f'All saved corners {relative_positions}')
+            cv2.putText(frame, text="Click 'Save Imaging Window' when you get a good ultrasound image",
+                        org=(100, 200),
+                        fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
+        else:
+            cv2.putText(frame, text="Please display the marker clearly", org=(100, 200),
+                        fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
+            print("please display the marker clearly")
     else:
         print("all positions have been saved,, move on to overlap")
-        cv2.putText(frame, text="All positions are saved, you can close the application", org=(200, 200),
-                    fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
-
+        cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(100, 100),
+            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
 
     return frame
 
 #save and draw relative positions
-def function4(frame):
+def function4(frame2):
     global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
 
-
-    # saved mask needs to be displayed for all functions henceforth
-    frame = cv2.flip(frame, 1)
-    modified_frame = frame.copy()
-
-    # Dynamically calculate the transparent black overlay
-    lower_skin, upper_skin = get_dominant_color_hsv(frame, k=2)
-    dynamic_mask = cv2.inRange(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), lower_skin, upper_skin)
-
-    # Apply the transparent green overlay
-    alpha_green = 0.5  # Transparency level
-    dynamic_mask_indices = dynamic_mask != 0
-    modified_frame[dynamic_mask_indices] = (
-            (1 - alpha_green) * modified_frame[dynamic_mask_indices]
-            + alpha_green * np.array([0, 255, 0], dtype=np.uint8)
-    )
-
-    # Calculate overlap percentage between the current mask and saved mask
-    grayscale_saved_mask = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2GRAY)
-    saved_mask_indices = grayscale_saved_mask != 0
-
-    overlap = np.logical_and(dynamic_mask_indices, saved_mask_indices).sum()
-    total_saved = saved_mask_indices.sum()
-
-    match_percentage = (overlap / total_saved * 100) if total_saved > 0 else 0
-
-    # Create a transparent white overlay for the saved mask
-    overlay = modified_frame.copy()
-    contours, _ = cv2.findContours(grayscale_saved_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Draw the larger white outline on the overlay
-    for contour in contours:
-        cv2.polylines(overlay, [contour], isClosed=True, color=(255, 255, 255), thickness=10)  # White (BGR)
-
-    # Blend the white overlay with the frame
-    alpha_white = 0.7  # Transparency level for white outline
-    cv2.addWeighted(overlay, alpha_white, modified_frame, 1 - alpha_white, 0, modified_frame)
-
-    # Draw the smaller pink outline on top of everything
-    for contour in contours:
-        cv2.polylines(modified_frame, [contour], isClosed=True, color=(203, 192, 255), thickness=2)  # Pink (BGR)
-
-    # Display "Mask" Information
-    if total_saved > 0:  # Display only after a mask is saved
-        cv2.putText(modified_frame, "Mask", org=(120, 300), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1.5, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Collected: Yes",
-                    org=(120, 350), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 400), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Overlap: {match_percentage:.1f}%",
-                    org=(120, 385), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        # Add instruction text in color if necessary
-        instruction_text = "Move forward" if match_percentage < 90 else "Good position"
-        text_color = (150, 100, 255)  # Light pink color
-        cv2.putText(modified_frame, instruction_text, org=(120, 420), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1, color=text_color, thickness=2, lineType=cv2.LINE_AA)
+    frame = function2(frame2)
 
     # Here the relative positions display logic begins
     if positions_collected > 0:
@@ -357,118 +242,62 @@ def function4(frame):
 
     # revert to function 5 to save the new position unless all positions have been saved
     if positions_collected < total_positions:
-        current_function_index[0] = 5
-    print(f"positions_collected {positions_collected}")
-    cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(250, 200),
-                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+        current_function_index[0] = 3
+        print(f"positions_collected {positions_collected}")
+        return frame
+    else:
+        cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(100, 100),
+                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
 
     return frame
 
 
 #compare probe overlap
-def function5(frame):
+def function5(frame2):
     global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
 
-    # saved mask needs to be displayed for all functions henceforth
-    frame = cv2.flip(frame, 1)
-    modified_frame = frame.copy()
-
-    # Dynamically calculate the transparent black overlay
-    lower_skin, upper_skin = get_dominant_color_hsv(frame, k=2)
-    dynamic_mask = cv2.inRange(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), lower_skin, upper_skin)
-
-    # Apply the transparent green overlay
-    alpha_green = 0.5  # Transparency level
-    dynamic_mask_indices = dynamic_mask != 0
-    modified_frame[dynamic_mask_indices] = (
-            (1 - alpha_green) * modified_frame[dynamic_mask_indices]
-            + alpha_green * np.array([0, 255, 0], dtype=np.uint8)
-    )
-
-    # Calculate overlap percentage between the current mask and saved mask
-    grayscale_saved_mask = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2GRAY)
-    saved_mask_indices = grayscale_saved_mask != 0
-
-    overlap = np.logical_and(dynamic_mask_indices, saved_mask_indices).sum()
-    total_saved = saved_mask_indices.sum()
-
-    match_percentage = (overlap / total_saved * 100) if total_saved > 0 else 0
-
-    # Create a transparent white overlay for the saved mask
-    overlay = modified_frame.copy()
-    contours, _ = cv2.findContours(grayscale_saved_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Draw the larger white outline on the overlay
-    for contour in contours:
-        cv2.polylines(overlay, [contour], isClosed=True, color=(255, 255, 255), thickness=10)  # White (BGR)
-
-    # Blend the white overlay with the frame
-    alpha_white = 0.7  # Transparency level for white outline
-    cv2.addWeighted(overlay, alpha_white, modified_frame, 1 - alpha_white, 0, modified_frame)
-
-    # Draw the smaller pink outline on top of everything
-    for contour in contours:
-        cv2.polylines(modified_frame, [contour], isClosed=True, color=(203, 192, 255), thickness=2)  # Pink (BGR)
-
-    # Display "Mask" Information
-    if total_saved > 0:  # Display only after a mask is saved
-        cv2.putText(modified_frame, "Mask", org=(120, 300), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1.5, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Collected: Yes",
-                    org=(120, 350), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 400), thickness=2, lineType=cv2.LINE_AA)
-
-        cv2.putText(modified_frame, f"Mask Overlap: {match_percentage:.1f}%",
-                    org=(120, 385), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1,
-                    color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-
-        # Add instruction text in color if necessary
-        instruction_text = "Move forward" if match_percentage < 90 else "Good position"
-        text_color = (150, 100, 255)  # Light pink color
-        cv2.putText(modified_frame, instruction_text, org=(120, 420), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                    fontScale=1, color=text_color, thickness=2, lineType=cv2.LINE_AA)
+    frame = function2(frame2)
 
     # Here the probe overlap comparison begins
 
     # declare tolerance for corner mismatch
     tolerance = 10
 
-    while True:
+    for i in range(total_positions):
+        cv2.polylines(frame, np.int32(relative_positions[i]), True, (255, 0, 0), 2)
 
+    corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+    aruco.drawDetectedMarkers(frame, corners, ids)
+    overlap_id = 0
+
+    # check overlap
+    if ids is not None:
+        # print(f'corners of marker are {corners}')
+        # print(f'corners of saved position 1 are {relative_positions[0]}')
+        # print(f'corners of saved position 2 are {relative_positions[1]}')
         for i in range(total_positions):
-            cv2.polylines(frame, np.int32(relative_positions[i]), True, (255, 0, 0), 2)
-
-        corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-        aruco.drawDetectedMarkers(frame, corners, ids)
-        overlap_id = 0
-
-        # check overlap
-        if ids is not None:
-            print(f'corners of marker are {corners}')
-            print(f'corners of saved position 1 are {relative_positions[0]}')
-            print(f'corners of saved position 2 are {relative_positions[1]}')
-            for i in range(total_positions):
-                diff = np.array(corners) - np.array(relative_positions[i])
-                print(f'difference array is {diff}')
-                if diff.all() <= tolerance:
-                    overlap_id = i
-                    break
-            # Draw the filled polygon
-            fill_color = (0, 255, 0)  # Fill color in BGR (Green in this case)
-            # cv2.fillPoly(frame, [np.array(relative_corners[overlap_id])], fill_color)
-            cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (0, 255, 0), 4)
-
-        cv2.imshow("Keep positioning it into the frame", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
+            diff = np.abs(np.array(corners) - np.array(relative_positions[i]))
+            print(f'difference array is {diff}')
+            if np.all(diff <= tolerance):
+                overlap_id = i
+                print(overlap_id)
+                cv2.putText(frame, text=f"Overlap detected w position {overlap_id}", org=(100, 100),
+                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+                cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (0, 255, 0), 4)
+            else:
+                cv2.putText(frame, text=f"Align with blue highlighted square", org=(100, 100),
+                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+                cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (255, 0, 0), 4)
+        # Draw the filled polygon
+        #fill_color = (0, 255, 0)  # Fill color in BGR (Green in this case)
+        # cv2.fillPoly(frame, [np.array(relative_corners[overlap_id])], fill_color)
+    return frame
 
 # Main function
 def main():
-    global camera_matrix, dist_coeffs, base_positions, base_width, relative_positions, rgb_mask, total_positions, positions_collected, current_function_index
+    global camera_matrix, dist_coeffs, base_positions, base_width, relative_positions, rgb_mask, total_positions, positions_collected, current_function_index, aruco_flag
     global color_threshold_button
+    aruco_flag = 0
     total_positions = 2
     positions_collected = 0
     relative_positions = {}
@@ -520,10 +349,13 @@ def main():
 
     # Function list and index
     functions = [function0, function1, function2, function3, function4, function5]
-    function_names = ["Function 0 - Welcome, click 'Save Mask' to proceed when you are comfortably seated", "Function 1 - Start "
+    # functions = [function00 (ethan create user profile to save mask and windows), function0, function1, function2, function3, function4, function5]
+    function_names = ["Function 0 - Welcome, click 'Save Mask' to proceed when you are comfortably seated", "Function "
+                                                                                                            "1 - Start"
                                                                                                 "color detection",
                       "Function 2, Save Mask",
-                      "Function 3, Determine imaging windows", "Function 4 - Save imaging windows","Function 5, Probe alignment"]
+                      "Function 3, Determine imaging windows", "Function 4 - Save imaging windows","Function 5, Probe "
+                                                                                                   "alignment"]
     current_function_index = [0] # Using a list to allow mutable behavior in the nested function
 
 
@@ -537,6 +369,7 @@ def main():
         save_relative_button.config(state=tk.DISABLED)
         display_mask_button.config(state=tk.DISABLED)
         comp_probe_overlap_button.config(state=tk.DISABLED)
+        aruco_flag = 0
 
         if current_function_index[0] == 0:  # Initial state
             color_threshold_button.config(state=tk.NORMAL)
@@ -544,13 +377,13 @@ def main():
             save_mask_button.config(state=tk.NORMAL)
         elif current_function_index[0] == 2:  # Save Mask
             relative_calib_button.config(state=tk.NORMAL)
+            aruco_flag = 1
         elif current_function_index[0] == 3:  # Determine Imaging Window
             save_relative_button.config(state=tk.NORMAL)
         elif current_function_index[0] == 4:  # Save Imaging Window
             if positions_collected < total_positions:
-                relative_calib_button.config(state=tk.NORMAL)
-        elif current_function_index[0] == 4:
-            if positions_collected == total_positions:
+                save_relative_button.config(state=tk.NORMAL)
+            else:
                 display_mask_button.config(state=tk.NORMAL)
                 comp_probe_overlap_button.config(state=tk.NORMAL)
 
@@ -605,6 +438,7 @@ def main():
     color_threshold_button.place(relx=0.8, rely=0.15, relheight=0.1, relwidth=0.115)
 
     def save_mask():
+        global aruco_flag
         current_function_index[0] = 2
 
     save_mask_button = tk.Button(root, text="Save Mask", bg="green", fg="black", command=save_mask, font=("Helvetica", 12))
@@ -627,14 +461,14 @@ def main():
     save_relative_button.place(relx=0.8, rely=0.51, relheight=0.1, relwidth=0.115)
 
     def display_mask():
-        current_function_index[0] = 2
+        current_function_index[0] = 4
 
     display_mask_button = tk.Button(root, text=f"Display Mask", command=display_mask, font=("Helvetica", 12))
     display_mask_button.place(relx=0.8, rely=0.75, relheight=0.1, relwidth=0.115)
 
 
     def probe_overlap():
-        current_function_index[0] = 6
+        current_function_index[0] = 5
 
     comp_probe_overlap_button = tk.Button(root, text=f"Realign probe", command=probe_overlap, font=("Helvetica", 12))
     comp_probe_overlap_button.place(relx=0.8, rely=0.87, relheight=0.1, relwidth=0.115)

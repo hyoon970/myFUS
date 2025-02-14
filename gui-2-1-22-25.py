@@ -281,7 +281,7 @@ def function5(frame2):
             if np.all(diff <= tolerance):
                 overlap_id = i
                 print(overlap_id)
-                cv2.putText(frame, text=f"Overlap detected w position {overlap_id}", org=(100, 100),
+                cv2.putText(frame, text=f"Overlap detected w position {overlap_id}", org=(100, 200),
                             fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
                 cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (0, 255, 0), 4)
             else:

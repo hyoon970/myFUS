@@ -9,7 +9,6 @@ from sklearn.cluster import KMeans
 from collections import Counter
 
 # Initialize the ArUco dictionary and parameters
-#testing
 aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
 parameters = aruco.DetectorParameters()
 detector = aruco.ArucoDetector(aruco_dict, parameters)

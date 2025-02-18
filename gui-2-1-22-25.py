@@ -7,6 +7,7 @@ import numpy as np
 import cv2.aruco as aruco
 from sklearn.cluster import KMeans
 from collections import Counter
+import os
 
 # Initialize the ArUco dictionary and parameters
 aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
@@ -438,7 +439,34 @@ def main():
     color_threshold_button.place(relx=0.8, rely=0.15, relheight=0.1, relwidth=0.115)
 
     def save_mask():
-        global aruco_flag
+        global rgb_mask
+
+        # Convert the RGB mask to grayscale
+        gray_mask = cv2.cvtColor(rgb_mask, cv2.COLOR_BGR2GRAY)
+
+        # Convert grayscale to binary mask (0 = background, 255 = foreground)
+        _, binary_mask = cv2.threshold(gray_mask, 50, 255, cv2.THRESH_BINARY)
+
+        # Convert binary mask to a NumPy array of 0s and 1s
+        binary_array = (binary_mask > 0).astype(np.uint8)  # Converts 255 values to 1, rest remain 0
+
+        # Create a folder to store masks
+        os.makedirs("masks", exist_ok=True)
+
+        # Define file paths
+        mask_image_path = os.path.join("masks", "saved_mask.png")
+        mask_array_path = os.path.join("masks", "saved_mask.npy")
+
+        # Save PNG image (black-and-white mask)
+        cv2.imwrite(mask_image_path, binary_mask)
+
+        # Save NumPy binary array
+        np.save(mask_array_path, binary_array)
+
+        print(f"Mask saved as PNG: {mask_image_path}")
+        print(f"Binary mask array saved as NPY: {mask_array_path}")
+
+        # Move to the next function in the GUI
         current_function_index[0] = 2
 
     save_mask_button = tk.Button(root, text="Save Mask", bg="green", fg="black", command=save_mask, font=("Helvetica", 12))

@@ -8,6 +8,7 @@ import cv2.aruco as aruco
 from sklearn.cluster import KMeans
 from collections import Counter
 import os
+import csv
 
 # Initialize the ArUco dictionary and parameters
 aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
@@ -16,6 +17,7 @@ detector = aruco.ArucoDetector(aruco_dict, parameters)
 marker_id = 23  # Change to the desired marker ID
 marker_size = 0.0345  # Size of marker in meters (3.45 cm)
 user_name = ""
+
 
 def get_dominant_color_hsv(image, k=2):
     image = cv2.flip(image, 1)
@@ -55,7 +57,6 @@ def convert_grayscale_to_rgb_mask(grayscale_mask):
 
 
 def highlight_navy_blue(frame1, lower_skin, upper_skin):
-
     frame1 = cv2.flip(frame1, 1)
 
     # Convert the frame to HSV color space
@@ -80,12 +81,14 @@ def highlight_navy_blue(frame1, lower_skin, upper_skin):
 def function0(frame):
     """Applies a grayscale filter."""
     frame = cv2.flip(frame, 1)
-    cv2.putText(frame, text=f"Click 'Mask Capture' when you are ready {user_name}", org=(150, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.1, color=(0, 0, 0), thickness=2)
+    cv2.putText(frame, text=f"Click 'Mask Capture' when you are ready {user_name}", org=(150, 100),
+                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.1, color=(0, 0, 0), thickness=2)
     return cv2.GaussianBlur(frame, (15, 15), 0)
 
     # return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-#create mask
+
+# create mask
 def function1(frame):
     global rgb_mask
     print('First we will record your current position and create a mask - try and stay within this mask!')
@@ -93,7 +96,8 @@ def function1(frame):
     lower_skin, upper_skin = get_dominant_color_hsv(frame, k=2)
     highlighted_frame, rgb_mask = highlight_navy_blue(frame, lower_skin, upper_skin)
     frame = cv2.flip(frame, 1)
-    cv2.putText(frame, text="Click 'Save Mask' if you are satisfied with the positioning", org=(150, 100), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+    cv2.putText(frame, text="Click 'Save Mask' if you are satisfied with the positioning", org=(150, 100),
+                fontFace=cv2.FONT_HERSHEY_TRIPLEX,
                 fontScale=1, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA)
     # this is the section where we superimpose the initially captured mask
     roi = frame[:, :]
@@ -104,7 +108,7 @@ def function1(frame):
     return frame
 
 
-#display the saved mask
+# display the saved mask
 def function2(frame):
     global rgb_mask, total_saved, positions_collected, aruco_flag
     frame = cv2.flip(frame, 1)
@@ -118,8 +122,8 @@ def function2(frame):
     alpha_green = 0.5  # Transparency level
     dynamic_mask_indices = dynamic_mask != 0
     modified_frame[dynamic_mask_indices] = (
-        (1 - alpha_green) * modified_frame[dynamic_mask_indices]
-        + alpha_green * np.array([0, 255, 0], dtype=np.uint8)
+            (1 - alpha_green) * modified_frame[dynamic_mask_indices]
+            + alpha_green * np.array([0, 255, 0], dtype=np.uint8)
     )
 
     # Calculate overlap percentage between the current mask and saved mask
@@ -130,7 +134,6 @@ def function2(frame):
     total_saved = saved_mask_indices.sum()
 
     match_percentage = (overlap / total_saved * 100) if total_saved > 0 else 0
-
 
     # Create a transparent white overlay for the saved mask
     overlay = modified_frame.copy()
@@ -175,10 +178,11 @@ def function2(frame):
     # Add instruction text
     if aruco_flag != 1:
         cv2.putText(modified_frame, text="The mask has been saved, proceed to 'Find Imaging Windows'",
-                org=(150, 50), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0),
-                thickness=2)
+                    org=(150, 50), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0),
+                    thickness=2)
 
     return modified_frame
+
 
 # Detect aruco marker positions
 def function3(frame2):
@@ -187,7 +191,6 @@ def function3(frame2):
     aruco_flag = 1
     # saved mask needs to be displayed for all functions henceforth
     frame = function2(frame2)
-
 
     # draw all saved  markers except the current one
     vertices_list = list(relative_positions.values())[:-1]
@@ -221,12 +224,14 @@ def function3(frame2):
             print("please display the marker clearly")
     else:
         print("all positions have been saved,, move on to overlap")
-        cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(100, 100),
-            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
+        cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe",
+                    org=(100, 100),
+                    fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
 
     return frame
 
-#save and draw relative positions
+
+# save and draw relative positions
 def function4(frame2):
     global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
 
@@ -247,25 +252,61 @@ def function4(frame2):
         print(f"positions_collected {positions_collected}")
         return frame
     else:
-        cv2.putText(frame, text="All positions are saved, you can close the application or proceed to Realign Probe", org=(100, 100),
-                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
+        print(relative_positions)
+        try:
+            # Extract and reshape the relative_positions data from the given dictionary format
+            all_positions = []
+            for key, value in relative_positions.items():
+                positions_array = value[0][0]  # Access the array within the tuple and nested structure
+                for row in positions_array:
+                    all_positions.append(row.flatten())
+
+            # Export the processed 'all_positions' array to a CSV file
+            output_file = "relative_positions_t2.csv"
+            with open(output_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerows(all_positions)
+            print(f"Relative positions exported to {output_file}.")
+            cv2.putText(frame, text="All positions saved, you can close the application or proceed to Realign Probe",
+                        org=(100, 100),
+                        fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
+        except Exception as e:
+            print(f"An error occurred while exporting: {e}")
+            cv2.putText(frame, text="An error occured while exporting the coordinates",
+                        org=(100, 100),
+                        fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.75, color=(0, 0, 0), thickness=2)
 
     return frame
 
 
-#compare probe overlap
+# compare probe overlap
 def function5(frame2):
     global positions_collected, total_positions, relative_positions, rgb_mask, current_function_index
 
     frame = function2(frame2)
 
     # Here the probe overlap comparison begins
+    input_file = "relative_positions_t2.csv"
+
+    # first we read the coordinates from the saved file:
+    try:
+        with open(input_file, mode="r") as file:
+            reader = csv.reader(file)
+            data = np.array(list(reader), dtype=float)
+            num_positions = len(data) // 4; # number of coordinate sets
+            print(f"number of saved quads {num_positions}")
+
+        # Process each set of 4 coordinates (corners of a quadrilateral)
+        for i in range(0, len(data), 4):
+            coords = data[i:i + 4].astype(np.int32).reshape((-1, 1, 2))
+            # Draw a polyline connecting the corners (closed shape)
+            cv2.polylines(frame, [coords], isClosed=True, color=(0, 0, 255), thickness=2)
+
+    except Exception as e:
+            print(f"An error occurred while reading and drawing bounding boxes: {e}")
 
     # declare tolerance for corner mismatch
     tolerance = 10
-
-    for i in range(total_positions):
-        cv2.polylines(frame, np.int32(relative_positions[i]), True, (255, 0, 0), 2)
 
     corners, ids, rejected = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
     aruco.drawDetectedMarkers(frame, corners, ids)
@@ -276,23 +317,29 @@ def function5(frame2):
         # print(f'corners of marker are {corners}')
         # print(f'corners of saved position 1 are {relative_positions[0]}')
         # print(f'corners of saved position 2 are {relative_positions[1]}')
-        for i in range(total_positions):
-            diff = np.abs(np.array(corners) - np.array(relative_positions[i]))
+        for i in range(0, len(data), 4):
+            int_coords = data[i:i + 4].astype(np.int32).reshape((-1, 1, 2))
+            coords = data[i:i + 4].astype(np.int32)
+            print(f"shape of coords array {np.shape(coords)}")
+            print(f"coords is {coords}")
+            diff = np.abs(np.array(corners) - [coords])
             print(f'difference array is {diff}')
             if np.all(diff <= tolerance):
-                overlap_id = i
-                print(overlap_id)
+                overlap_id = i+1//4
+                print(f"overlap is {overlap_id}")
                 cv2.putText(frame, text=f"Overlap detected w position {overlap_id}", org=(100, 200),
                             fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
-                cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (0, 255, 0), 4)
+                cv2.polylines(frame, [int_coords], True, (0, 255, 0), 4)
             else:
                 cv2.putText(frame, text=f"Align with blue highlighted square", org=(100, 100),
                             fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 0, 0), thickness=2)
-                cv2.polylines(frame, np.int32(relative_positions[overlap_id]), True, (255, 0, 0), 4)
+                cv2.polylines(frame, [int_coords], True, (0, 0, 255), 4)
+                print("no overlap detected")
         # Draw the filled polygon
-        #fill_color = (0, 255, 0)  # Fill color in BGR (Green in this case)
+        # fill_color = (0, 255, 0)  # Fill color in BGR (Green in this case)
         # cv2.fillPoly(frame, [np.array(relative_corners[overlap_id])], fill_color)
     return frame
+
 
 # Main function
 def main():
@@ -325,7 +372,6 @@ def main():
         logo_bgr = logo
         logo_alpha = np.ones(logo_bgr.shape[:2], dtype=np.float32)  # No transparency
 
-
     # Initialize Tkinter window
     root = tk.Tk()
     root.title("Demo 1: myFUS")
@@ -342,7 +388,7 @@ def main():
 
     # Add a label above the column of buttons
     calibration_label = tk.Label(root, text="Start-Up\nCalibration", bg="black", fg="white",
-                                font=("Helvetica", 16, "bold"), justify="center")
+                                 font=("Helvetica", 16, "bold"), justify="center")
     calibration_label.place(relx=.7, rely=.1, relheight=.1, relwidth=.115)
 
     video_frame = tk.Label(root)
@@ -353,16 +399,14 @@ def main():
     # functions = [function00 (ethan create user profile to save mask and windows), function0, function1, function2, function3, function4, function5]
     function_names = ["Function 0 - Welcome, click 'Save Mask' to proceed when you are comfortably seated", "Function "
                                                                                                             "1 - Start"
-                                                                                                "color detection",
+                                                                                                            "color detection",
                       "Function 2, Save Mask",
-                      "Function 3, Determine imaging windows", "Function 4 - Save imaging windows","Function 5, Probe "
-                                                                                                   "alignment"]
-    current_function_index = [0] # Using a list to allow mutable behavior in the nested function
-
+                      "Function 3, Determine imaging windows", "Function 4 - Save imaging windows", "Function 5, Probe "
+                                                                                                    "alignment"]
+    current_function_index = [0]  # Using a list to allow mutable behavior in the nested function
 
     def update_buttons():
 
-        
         """Enable or disable buttons based on the current function."""
         color_threshold_button.config(state=tk.DISABLED)
         save_mask_button.config(state=tk.DISABLED)
@@ -387,8 +431,6 @@ def main():
             else:
                 display_mask_button.config(state=tk.NORMAL)
                 comp_probe_overlap_button.config(state=tk.NORMAL)
-
-
 
     # Modify the update_video function to include update_buttons
     def update_video():
@@ -429,13 +471,12 @@ def main():
 
         video_frame.after(10, update_video)
 
-
-
     def color_threshold():
         """Switch to the next function."""
         current_function_index[0] = 1
 
-    color_threshold_button = tk.Button(root, text="Mask Capture", wraplength=50, bg="lightblue", fg ="black", command=color_threshold, font=("Helvetica", 12))
+    color_threshold_button = tk.Button(root, text="Mask Capture", wraplength=50, bg="lightblue", fg="black",
+                                       command=color_threshold, font=("Helvetica", 12))
     color_threshold_button.place(relx=0.8, rely=0.15, relheight=0.1, relwidth=0.115)
 
     def save_mask():
@@ -469,15 +510,17 @@ def main():
         # Move to the next function in the GUI
         current_function_index[0] = 2
 
-    save_mask_button = tk.Button(root, text="Save Mask", bg="green", fg="black", command=save_mask, font=("Helvetica", 12))
+    save_mask_button = tk.Button(root, text="Save Mask", bg="green", fg="black", command=save_mask,
+                                 font=("Helvetica", 12))
     save_mask_button.place(relx=0.8, rely=0.27, relheight=0.1, relwidth=0.115)
 
     def relative_calibration():
         global positions_collected
         current_function_index[0] = 3
 
-    relative_calib_button = tk.Button(root, text="Find Imaging Windows", bg="lightblue", fg ="black",  command=relative_calibration,
-                                  font=("Helvetica", 12))
+    relative_calib_button = tk.Button(root, text="Find Imaging Windows", bg="lightblue", fg="black",
+                                      command=relative_calibration,
+                                      font=("Helvetica", 12))
     relative_calib_button.place(relx=0.8, rely=0.39, relheight=0.1, relwidth=0.115)
 
     def save_relative():
@@ -485,7 +528,8 @@ def main():
         current_function_index[0] = 4
         positions_collected += 1
 
-    save_relative_button = tk.Button(root, text=f"Save Imaging Window", bg="lightblue", fg ="black", command=save_relative, font=("Helvetica", 12))
+    save_relative_button = tk.Button(root, text=f"Save Imaging Window", bg="lightblue", fg="black",
+                                     command=save_relative, font=("Helvetica", 12))
     save_relative_button.place(relx=0.8, rely=0.51, relheight=0.1, relwidth=0.115)
 
     def display_mask():
@@ -494,13 +538,11 @@ def main():
     display_mask_button = tk.Button(root, text=f"Display Mask", command=display_mask, font=("Helvetica", 12))
     display_mask_button.place(relx=0.8, rely=0.75, relheight=0.1, relwidth=0.115)
 
-
     def probe_overlap():
         current_function_index[0] = 5
 
     comp_probe_overlap_button = tk.Button(root, text=f"Realign probe", command=probe_overlap, font=("Helvetica", 12))
     comp_probe_overlap_button.place(relx=0.8, rely=0.87, relheight=0.1, relwidth=0.115)
-
 
     update_video()
 

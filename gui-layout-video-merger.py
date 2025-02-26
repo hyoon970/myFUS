@@ -47,7 +47,7 @@ def probe_overlap():
     global current_function_index
     current_function_index[0] = 5
 
-# all functional scripts for image processing and display
+# all preliminary scripts for color thresholding for mask generation
 def get_dominant_color_hsv(image, k=2):
     image = cv2.flip(image, 1)
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -105,6 +105,7 @@ def highlight_navy_blue(frame1, lower_skin, upper_skin):
 
     return highlighted_frame, rgb_mask
 
+# all functions start here
 def function0(frame):
     global instruction, user_name, mask_collected
     mask_collected = 0
@@ -329,9 +330,6 @@ def maskdata():
     global mask_collected, mask_overlap
     mask_data = f"Mask Collected (0/1): {mask_collected} \n Mask Overlap: {mask_overlap}"
     return mask_data
-# Placeholder for `change_function`
-def change_function(option):
-    print(f"Button {option} clicked.")
 
 # Placeholder for `current_frame`
 current_frame = np.zeros((1280, 720, 3), dtype=np.uint8)  # Dummy frame for initialization

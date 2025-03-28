@@ -1,3 +1,5 @@
+Python 3.11.1 (tags/v3.11.1:a7a450f, Dec  6 2022, 19:58:39) [MSC v.1934 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license()" for more information.
 import cv2
 import tkinter as tk
 from tkinter import Label
@@ -17,6 +19,7 @@ detector = aruco.ArucoDetector(aruco_dict, parameters)
 marker_id = 23  # Change to the desired marker ID
 marker_size = 0.0345  # Size of marker in meters (3.45 cm)
 user_name = ""
+
 
 def get_dominant_color_hsv(image, k=2):
     image = cv2.flip(image, 1)
@@ -521,35 +524,34 @@ def main():
                                       command=relative_calibration,
                                       font=("Helvetica", 12))
     relative_calib_button.place(relx=0.8, rely=0.39, relheight=0.1, relwidth=0.115)
-
-    def save_relative():
-        global positions_collected
-        current_function_index[0] = 4
-        positions_collected += 1
-
-    save_relative_button = tk.Button(root, text=f"Save Imaging Window", bg="lightblue", fg="black",
-                                     command=save_relative, font=("Helvetica", 12))
-    save_relative_button.place(relx=0.8, rely=0.51, relheight=0.1, relwidth=0.115)
-
-    def display_mask():
-        current_function_index[0] = 4
-
-    display_mask_button = tk.Button(root, text=f"Display Mask", command=display_mask, font=("Helvetica", 12))
-    display_mask_button.place(relx=0.8, rely=0.75, relheight=0.1, relwidth=0.115)
-
-    def probe_overlap():
-        current_function_index[0] = 5
-
-    comp_probe_overlap_button = tk.Button(root, text=f"Realign probe", command=probe_overlap, font=("Helvetica", 12))
-    comp_probe_overlap_button.place(relx=0.8, rely=0.87, relheight=0.1, relwidth=0.115)
-
-    update_video()
-
-    # Run Tkinter loop
-    root.protocol("WM_DELETE_WINDOW", lambda: (cap.release(), root.destroy()))
-    root.mainloop()
-
-
-# Run the main function
-if __name__ == "__main__":
-    main()
+... 
+...     def save_relative():
+...         global positions_collected
+...         current_function_index[0] = 4
+...         positions_collected += 1
+... 
+...     save_relative_button = tk.Button(root, text=f"Save Imaging Window", bg="lightblue", fg="black",
+...                                      command=save_relative, font=("Helvetica", 12))
+...     save_relative_button.place(relx=0.8, rely=0.51, relheight=0.1, relwidth=0.115)
+... 
+...     def display_mask():
+...         current_function_index[0] = 4
+... 
+...     display_mask_button = tk.Button(root, text=f"Display Mask", command=display_mask, font=("Helvetica", 12))
+...     display_mask_button.place(relx=0.8, rely=0.75, relheight=0.1, relwidth=0.115)
+... 
+...     def probe_overlap():
+...         current_function_index[0] = 5
+... 
+...     comp_probe_overlap_button = tk.Button(root, text=f"Realign probe", command=probe_overlap, font=("Helvetica", 12))
+...     comp_probe_overlap_button.place(relx=0.8, rely=0.87, relheight=0.1, relwidth=0.115)
+... 
+...     update_video()
+... 
+...     # Run Tkinter loop
+...     root.protocol("WM_DELETE_WINDOW", lambda: (cap.release(), root.destroy()))
+...     root.mainloop()
+... 
+... 
+... # Run the main function
+... if __name__ == "__main__":

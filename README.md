@@ -36,7 +36,7 @@ The patient can log into their myFUS profile using the username and passkey.
 
 **Data use and privacy:** 
 
-**- Data analysis:** The data will be maintained on a password-protected local server at the CRC at MIT under the PI, Dr. Canan Dagdeviren. The masked webcam images with the probe in position and the corresponding ultrasound images will be used for qualitative and quantitative analysis, and will only be provided to the researchers signed on this protocol. The data will be anonymized under the numeric username assigned to the user. 
+**- Data analysis:** The data will be maintained on a password-protected local server under the PI. The masked webcam images with the probe in position and the corresponding ultrasound images will be used for qualitative and quantitative analysis, and will only be provided to the researchers signed on this protocol. The data will be anonymized under the numeric username assigned to the user. 
 
 **- Use of photographs/ultrasound images:** The user can clearly indicate in their consent form if they would like to volunteer their webcam and/or ultrasound images for publications related to the work and findings. By default, the permission to use images for published works is denied. For users who volunteer their images, all facial or other bodily identifying features such as marks, spots, or scars will be removed prior to publication. The nipple, if still visible in the masked images, will be blurred out. A copy of the manuscript will be provided to the user prior to publication. The user may request modifications to the image at this time. Unless the image is in violation of the anonymising modifications listed above, the user is expected to grant their approval on the manuscript. 
 

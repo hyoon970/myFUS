@@ -1,3 +1,0 @@
-12/09/24 Hyeokjun
-- Made a github repository
-- Test file uploading
